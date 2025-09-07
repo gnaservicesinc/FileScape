@@ -9,28 +9,29 @@ struct TagResult {
 final class Tagger {
     static let shared = Tagger()
     private let registry = TagRegistry.shared
+    private var magicBudget: Int = 200 // per batch
 
-    func tag(for url: URL, isDirectory: Bool, isPackage: Bool, uti: String?, fileExtension: String?) -> TagResult {
+    func beginBatch() { magicBudget = 200 }
+
+    func tag(for node: FileNode) -> TagResult {
+        let url = node.url
+        let isDirectory = node.isDirectory
+        let isPackage = node.isPackage
+        let uti = node.uti
+        let fileExtension = node.fileExtension
+        let approxSize = node.sizeBytes
+
         if isDirectory && !isPackage {
             return TagResult(style: registry.styleFor(tag: "folder", family: "folder"))
         }
         if isPackage {
             return TagResult(style: registry.styleFor(tag: "app", family: "app"))
         }
-        // Try magic
-        if let magic = magicFamily(url: url) {
-            return TagResult(style: registry.styleFor(tag: magic.tag, family: magic.family))
-        }
-        // Fallback to extension mapping
+        // Extension/UTI first (fast)
         if let fam = registry.familyForExt(fileExtension) {
             let tag = registry.normalizedExt(fileExtension) ?? (fileExtension ?? "other")
             return TagResult(style: registry.styleFor(tag: tag, family: fam))
         }
-        // Heuristic content sniffing of text/code
-        if let sniff = sniffTextCode(url: url) {
-            return TagResult(style: registry.styleFor(tag: sniff.tag, family: sniff.family))
-        }
-        // Last resort: UTI family
         if let uti, let ut = UTType(uti) {
             if ut.conforms(to: .image) { return TagResult(style: registry.styleFor(tag: uti, family: "image")) }
             if ut.conforms(to: .audiovisualContent) { return TagResult(style: registry.styleFor(tag: uti, family: "video")) }
@@ -38,12 +39,24 @@ final class Tagger {
             if ut.conforms(to: .text) { return TagResult(style: registry.styleFor(tag: uti, family: "text")) }
             if ut.conforms(to: .sourceCode) { return TagResult(style: registry.styleFor(tag: uti, family: "code")) }
         }
+        // Try magic (budgeted, small files only)
+        if magicBudget > 0, approxSize > 0, approxSize <= 5_000_000, let magic = magicFamily(url: url) {
+            magicBudget -= 1
+            return TagResult(style: registry.styleFor(tag: magic.tag, family: magic.family))
+        }
+        // Heuristic content sniffing of text/code
+        if magicBudget > 0, approxSize > 0, approxSize <= 2_000_000, let sniff = sniffTextCode(url: url) {
+            magicBudget -= 1
+            return TagResult(style: registry.styleFor(tag: sniff.tag, family: sniff.family))
+        }
         return TagResult(style: registry.styleFor(tag: "other", family: "other"))
     }
 
     // MARK: Magic numbers
     private func magicFamily(url: URL) -> (tag: String, family: String)? {
-        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
+        guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fh.close() }
+        let data = fh.readData(ofLength: 16)
         if data.count >= 8 {
             let bytes = [UInt8](data.prefix(16))
             // PNG
@@ -65,10 +78,10 @@ final class Tagger {
             if bytes.starts(with: rar) { return ("rar", "archive") }
             // GZ
             if bytes[0] == 0x1F && bytes[1] == 0x8B { return ("gz", "archive") }
-            // Mach-O (exec, dylib)
-            let machoMagic: [UInt32] = [0xFEEDFACE, 0xFEEDFACF, 0xCEFAEDFE, 0xCFFAEDFE]
+            // Mach-O (exec, dylib): check first 4 bytes
             if data.count >= 4 {
                 let v = data.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self) }
+                let machoMagic: [UInt32] = [0xFEEDFACE, 0xFEEDFACF, 0xCEFAEDFE, 0xCFFAEDFE]
                 if machoMagic.contains(v) { return ("mach-o", "binary") }
             }
         }
@@ -77,14 +90,16 @@ final class Tagger {
 
     // MARK: Sniff text vs code and flavors
     private func sniffTextCode(url: URL) -> (tag: String, family: String)? {
-        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
-        if data.isEmpty { return nil }
+        guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fh.close() }
+        let data = fh.readData(ofLength: 4096)
+        guard !data.isEmpty else { return nil }
         // BOM
         if data.starts(with: [0xEF,0xBB,0xBF]) { return ("utf8-text", "text") }
         if data.starts(with: [0xFF,0xFE]) { return ("utf16le-text", "text") }
         if data.starts(with: [0xFE,0xFF]) { return ("utf16be-text", "text") }
         // ASCII ratio
-        let sample = data.prefix(4096)
+        let sample = data
         let printable = sample.filter { b in
             (0x09...0x0D).contains(b) || (0x20...0x7E).contains(b)
         }
@@ -93,4 +108,3 @@ final class Tagger {
         return nil
     }
 }
-

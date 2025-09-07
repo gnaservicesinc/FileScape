@@ -25,6 +25,7 @@ final class ExplorerViewModel: ObservableObject {
     @Published var exactPackageSizes: Bool = true
     @Published var zoomKey: ZoomKey = .control
     @Published var overlayMessage: String? = nil
+    @Published var nextAppearEnter: Bool = false
 
     // Aggregate 'Others' for current focus
     private(set) var othersChildren: [FileNode] = []
@@ -58,7 +59,7 @@ final class ExplorerViewModel: ObservableObject {
         defer { isScanning = false }
         do {
             let options = FileScanner.Options(includeHidden: includeHidden, followSymlinks: false, maxDepth: 2, packageAsFiles: true, skipPaths: [], fileCountLimit: 500_000, computePackageSizesDeep: exactPackageSizes)
-            let node = try FileScanner.scan(root: url, options: options)
+            let node = try await Task.detached(priority: .userInitiated) { try FileScanner.scan(root: url, options: options) }.value
             rootNode = node
             navStack = [node]
             focusNode = node
@@ -139,7 +140,9 @@ final class ExplorerViewModel: ObservableObject {
                                       guard let self else { return nil }
                                       return self.previewChildren(for: node)
                                   },
-                                  cameraTransformOverride: cameraTransform)
+                                  cameraTransformOverride: cameraTransform,
+                                  appear: nextAppearEnter ? .enter : nil)
+        nextAppearEnter = false
     }
 
     enum ZoomKey: String, CaseIterable, Identifiable {
@@ -214,7 +217,7 @@ final class ExplorerViewModel: ObservableObject {
     }
 
     func enterSelectedFolder() {
-        guard let s = selected, s.isDirectory else { return }
+        guard let s = selected, (s.isDirectory || s.isPackage) else { return }
         if s.url.lastPathComponent == othersSentinelName {
             let synthetic = FileNode(url: s.url, name: s.name, isDirectory: true, isPackage: false, fileExtension: nil, uti: nil, sizeBytes: s.sizeBytes, creationDate: nil, modificationDate: nil, accessDate: nil, children: othersChildren)
             navStack.append(synthetic)
@@ -224,19 +227,24 @@ final class ExplorerViewModel: ObservableObject {
             return
         }
         // On-demand deeper scan for the selected folder
-        Task {
-            isScanning = true
-            defer { isScanning = false }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            await MainActor.run { self.isScanning = true }
             do {
-                let options = FileScanner.Options(includeHidden: includeHidden, followSymlinks: false, maxDepth: 2, packageAsFiles: true, skipPaths: [], fileCountLimit: 500_000, computePackageSizesDeep: exactPackageSizes)
+                let capture = await (self.includeHidden, self.exactPackageSizes)
+                let options = FileScanner.Options(includeHidden: capture.0, followSymlinks: false, maxDepth: 2, packageAsFiles: true, skipPaths: [], fileCountLimit: 500_000, computePackageSizesDeep: capture.1)
                 let newlyScanned = try FileScanner.scan(root: s.url, options: options)
-                navStack.append(newlyScanned)
-                focusNode = newlyScanned
-                selected = nil
-                rebuildScene()
+                await MainActor.run {
+                    self.navStack.append(newlyScanned)
+                    self.focusNode = newlyScanned
+                    self.selected = nil
+                    self.nextAppearEnter = true
+                    self.rebuildScene()
+                }
             } catch {
-                errorMessage = error.localizedDescription
+                await MainActor.run { self.errorMessage = error.localizedDescription }
             }
+            await MainActor.run { self.isScanning = false }
         }
     }
 
@@ -245,6 +253,7 @@ final class ExplorerViewModel: ObservableObject {
         _ = navStack.popLast()
         focusNode = navStack.last
         selected = nil
+        nextAppearEnter = false
         rebuildScene()
     }
 
@@ -293,18 +302,17 @@ final class ExplorerViewModel: ObservableObject {
         if node.isPackage {
             if let cached = previewCache[node.url.path] { return cached }
             // Lightweight one-level scan to preview package contents
-            do {
-                var visited: Set<String> = []
-                var remaining = 50_000
+            // Kick off a background compute and return nil for now (non-blocking)
+            Task.detached(priority: .utility) { [weak self] in
+                guard let self else { return }
                 let fm = FileManager.default
                 let keys: Set<URLResourceKey> = [.isDirectoryKey, .isPackageKey, .typeIdentifierKey, .fileSizeKey, .totalFileAllocatedSizeKey]
-                let urls = try fm.contentsOfDirectory(at: node.url, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles])
-                let children: [FileNode] = urls.prefix(60).compactMap { url in
+                guard let urls = try? fm.contentsOfDirectory(at: node.url, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles]) else { return }
+                let list = urls.prefix(40).compactMap { url -> FileNode? in
                     guard let rv = try? url.resourceValues(forKeys: keys) else { return nil }
                     if rv.isDirectory == true && rv.isPackage != true {
-                        // Get rough size of immediate directory level (not deep)
-                        let s = (try? FileScanner.directorySize(at: url, includeHidden: false, followSymlinks: false, visited: &visited, remainingCount: &remaining)) ?? 0
-                        return FileNode(url: url, name: url.lastPathComponent, isDirectory: true, isPackage: false, fileExtension: url.pathExtension, uti: rv.typeIdentifier, sizeBytes: s, creationDate: nil, modificationDate: nil, accessDate: nil, children: [])
+                        // no deep size; preview only
+                        return FileNode(url: url, name: url.lastPathComponent, isDirectory: true, isPackage: false, fileExtension: url.pathExtension, uti: rv.typeIdentifier, sizeBytes: 0, creationDate: nil, modificationDate: nil, accessDate: nil, children: [])
                     } else {
                         let allocatedSize64: Int64? = (rv.totalFileAllocatedSize as NSNumber?)?.int64Value
                         let fileSize64: Int64? = rv.fileSize.flatMap { Int64($0) }
@@ -312,11 +320,12 @@ final class ExplorerViewModel: ObservableObject {
                         return FileNode(url: url, name: url.lastPathComponent, isDirectory: rv.isDirectory ?? false, isPackage: rv.isPackage ?? false, fileExtension: url.pathExtension, uti: rv.typeIdentifier, sizeBytes: size, creationDate: nil, modificationDate: nil, accessDate: nil, children: [])
                     }
                 }
-                previewCache[node.url.path] = children
-                return children
-            } catch {
-                return nil
+                await MainActor.run {
+                    self.previewCache[node.url.path] = list
+                    self.rebuildScene()
+                }
             }
+            return nil
         }
         return nil
     }

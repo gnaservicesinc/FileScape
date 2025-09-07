@@ -1,6 +1,7 @@
 import SwiftUI
 import SceneKit
 import AppKit
+import QuartzCore
 
 struct FileSceneView: NSViewRepresentable {
     let scene: SCNScene
@@ -11,6 +12,9 @@ struct FileSceneView: NSViewRepresentable {
     var enableFlyControls: Bool = true
     var onBack: () -> Void = {}
     var zoomModifier: NSEvent.ModifierFlags = .control
+    struct FlyTarget: Equatable { let path: String; let fast: Bool }
+    var flyTo: FlyTarget? = nil
+    var onFlyComplete: () -> Void = {}
 
     enum TransitionHint { case enter, exit }
 
@@ -54,6 +58,10 @@ struct FileSceneView: NSViewRepresentable {
         if context.coordinator.lastFocus != focusPath {
             context.coordinator.lastFocus = focusPath
             if let focusPath { focusCamera(onPath: focusPath, view: nsView) }
+        }
+        // Handle fly-to on request
+        if let target = flyTo {
+            animateFly(toPath: target.path, fast: target.fast, view: nsView) { onFlyComplete() }
         }
     }
 
@@ -245,10 +253,11 @@ struct FileSceneView: NSViewRepresentable {
         private func wobbleNearCamera(speed: Float) {
             guard let scene = self.scene, let cam = self.pointOfView else { return }
             let camPos = cam.presentation.position
-            let maxDist: Float = 3.5
-            let magBase: Float = min(0.25, max(0.05, speed))
+            // Use CGFloat for distance math on macOS
+            let maxDist: CGFloat = 3.5
+            let magBase: CGFloat = CGFloat(min(0.25, max(0.05, speed)))
 
-            func applyWobble(to node: SCNNode, amount: Double) {
+            func applyWobble(to node: SCNNode, amount: CGFloat) {
                 let mag = CGFloat(min(0.3, max(0.05, amount)))
                 node.runAction(.sequence([
                     .scale(to: 1.0 + mag, duration: 0.06),
@@ -262,7 +271,7 @@ struct FileSceneView: NSViewRepresentable {
                 }
             }
 
-            func ripple(from node: SCNNode, magnitude: Double, radius: Float, depth: Int) {
+            func ripple(from node: SCNNode, magnitude: CGFloat, radius: CGFloat, depth: Int) {
                 guard depth > 0 else { return }
                 let parent = node.parent
                 let siblings = parent?.childNodes ?? []
@@ -275,7 +284,7 @@ struct FileSceneView: NSViewRepresentable {
                     let d2 = dx*dx + dy*dy + dz*dz
                     if d2 < radius*radius {
                         let prox = 1.0 - (sqrt(d2)/radius)
-                        let mag = magnitude * Double(prox)
+                        let mag = magnitude * prox
                         applyWobble(to: sib, amount: mag)
                         if mag > 0.02 && count < 12 {
                             count += 1
@@ -290,18 +299,22 @@ struct FileSceneView: NSViewRepresentable {
                     if child.geometry != nil {
                         let p = child.presentation.worldPosition
                         let dx = p.x - camPos.x, dy = p.y - camPos.y, dz = p.z - camPos.z
-                        let d2 = dx*dx + dy*dy + dz*dz
+                        let d2: CGFloat = dx*dx + dy*dy + dz*dz
                         if d2 < maxDist*maxDist {
-                            let proximity = 1.0 - sqrt(d2)/maxDist
-                            let mag = Double(magBase * proximity)
+                            let proximity: CGFloat = 1.0 - sqrt(d2)/maxDist
+                            let mag: CGFloat = magBase * proximity
                             applyWobble(to: child, amount: mag)
                             // push then rubberband back
-                            let push = 0.05 * Float(mag)
-                            let dist = max(0.0001, sqrt(d2))
-                            let dir = SIMD3<Float>(dx/dist, dy/dist, dz/dist)
+                            let push = CGFloat(0.05) * mag
+                            let dist = max(CGFloat(0.0001), sqrt(d2))
+                            let dir = SIMD3<Float>(
+                                Float(dx / dist),
+                                Float(dy / dist),
+                                Float(dz / dist)
+                            )
                             child.runAction(.sequence([
-                                .moveBy(x: CGFloat(dir.x * push), y: CGFloat(dir.y * push), z: CGFloat(dir.z * push), duration: 0.06),
-                                .moveBy(x: CGFloat(-dir.x * push), y: CGFloat(-dir.y * push), z: CGFloat(-dir.z * push), duration: 0.25)
+                                .moveBy(x: CGFloat(dir.x) * push, y: CGFloat(dir.y) * push, z: CGFloat(dir.z) * push, duration: 0.06),
+                                .moveBy(x: -CGFloat(dir.x) * push, y: -CGFloat(dir.y) * push, z: -CGFloat(dir.z) * push, duration: 0.25)
                             ]))
                             ripple(from: child, magnitude: mag * 0.6, radius: 1.6, depth: 2)
                         }
@@ -388,6 +401,45 @@ struct FileSceneView: NSViewRepresentable {
             SCNTransaction.commit()
         }
         SCNTransaction.commit()
+    }
+
+    private func animateFly(toPath path: String, fast: Bool, view: SCNView, completion: @escaping () -> Void) {
+        guard let scene = view.scene else { completion(); return }
+        guard let node = scene.rootNode.childNode(withName: path, recursively: true) else { completion(); return }
+        if view.pointOfView == nil {
+            let cam = SCNCamera(); let camNode = SCNNode(); camNode.camera = cam; scene.rootNode.addChildNode(camNode); view.pointOfView = camNode
+        }
+        guard let camNode = view.pointOfView else { completion(); return }
+
+        // Compute target position slightly offset from the node along the current approach vector
+        let pos = node.presentation.position
+        let current = camNode.presentation.position
+        let dir = SCNVector3(pos.x - current.x, pos.y - current.y, pos.z - current.z)
+        let len = max(0.001, sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z))
+        let norm = SCNVector3(dir.x/len, dir.y/len, dir.z/len)
+        let dist: Float = Float(fast ? max(2.0, len - 2.0) : max(2.0, len - 4.5))
+        let targetPos = SCNVector3(pos.x - norm.x * CGFloat(dist), pos.y - norm.y * CGFloat(dist) + 1.0, pos.z - norm.z * CGFloat(dist))
+
+        // Duration and timing
+        let duration: TimeInterval = fast ? 0.55 : 0.9
+
+        // Stop any existing actions on the camera to avoid conflicts
+        camNode.removeAllActions()
+
+        // Move action
+        let move = SCNAction.move(to: targetPos, duration: duration)
+        move.timingMode = .easeInEaseOut
+
+        // Orientation action: smoothly rotate to look at the target
+        // We'll interpolate orientation by sampling each frame and setting look(at:) to the same target.
+        let orient = SCNAction.customAction(duration: duration) { node, _ in
+            node.look(at: pos)
+        }
+        orient.timingMode = .easeInEaseOut
+
+        // Group move + orientation; run then call completion
+        let group = SCNAction.group([move, orient])
+        camNode.runAction(group, completionHandler: completion)
     }
 }
 

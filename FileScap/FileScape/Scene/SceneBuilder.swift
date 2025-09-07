@@ -39,14 +39,18 @@ final class SceneBuilder {
 
     typealias PreviewProvider = (FileNode) -> [FileNode]?
 
+    enum AppearKind { case enter, exit }
+
     func makeScene(for root: FileNode,
                    selectedPath: String? = nil,
                    matchPaths: Set<String> = [],
                    childrenOverride: [FileNode]? = nil,
                    roomsMode: Bool = false,
                    previewProvider: PreviewProvider? = nil,
-                   cameraTransformOverride: SCNMatrix4? = nil) -> SCNScene {
+                   cameraTransformOverride: SCNMatrix4? = nil,
+                   appear: AppearKind? = nil) -> SCNScene {
         let scene = SCNScene()
+        tagger.beginBatch()
 
         // Lighting
         let ambient = SCNLight()
@@ -80,6 +84,7 @@ final class SceneBuilder {
             } else {
                 layoutRadial(children: children, in: container, selectedPath: selectedPath, matchPaths: matchPaths, previewProvider: previewProvider)
             }
+            if let appear { applyAppearAnimation(to: container, kind: appear) }
             scene.rootNode.addChildNode(container)
 
             // Camera based on content bounds
@@ -162,7 +167,7 @@ final class SceneBuilder {
 
             if config.showLabels && rel >= config.labelMinRel {
                 let labelText = labelString(for: node, maxChars: config.labelMaxChars)
-                let baseColor = tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.color
+                let baseColor = tagger.tag(for: node).style.color
                 let label = TextLabelFactory.makeBillboard(text: labelText, fontSize: 9, baseColor: baseColor)
                 label.position = SCNVector3(0, Float(height/2 + 0.1), 0)
                 n.addChildNode(label)
@@ -221,7 +226,7 @@ final class SceneBuilder {
 
                 if config.showLabels && rel >= config.labelMinRel {
                     let labelText = labelString(for: node, maxChars: config.labelMaxChars)
-                    let baseColor = tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.color
+                    let baseColor = tagger.tag(for: node).style.color
                     let label = TextLabelFactory.makeBillboard(text: labelText, fontSize: 9, baseColor: baseColor)
                     label.position = SCNVector3(0, Float(height/2 + 0.1), 0)
                     n.addChildNode(label)
@@ -265,7 +270,7 @@ final class SceneBuilder {
 
                     if config.showLabels && rel >= config.labelMinRel {
                         let labelText = labelString(for: node, maxChars: config.labelMaxChars)
-                        let baseColor = tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.color
+                        let baseColor = tagger.tag(for: node).style.color
                         let label = TextLabelFactory.makeBillboard(text: labelText, fontSize: 9, baseColor: baseColor)
                         label.position = SCNVector3(0, Float(height/2 + 0.1), 0)
                         n.addChildNode(label)
@@ -285,7 +290,7 @@ final class SceneBuilder {
     }
 
     private func material(for node: FileNode, highlighted: Bool, rel: CGFloat, config: Config) -> SCNMaterial {
-        var color = tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.color
+        var color = tagger.tag(for: node).style.color
         let alpha = max(0.05, min(1.0, config.minAlpha + rel * (config.maxAlpha - config.minAlpha)))
         color = color.withAlphaComponent(alpha)
         let m = SceneBuilder.makeMaterial(color: color)
@@ -376,7 +381,7 @@ final class SceneBuilder {
 
             if config.showLabels && rel >= config.labelMinRel {
                 let labelText = labelString(for: node, maxChars: config.labelMaxChars)
-                let baseColor = tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.color
+                let baseColor = tagger.tag(for: node).style.color
                 let label = TextLabelFactory.makeBillboard(text: labelText, fontSize: 9, baseColor: baseColor)
                 label.position = SCNVector3(0, Float(height/2 + 0.1), 0)
                 n.addChildNode(label)
@@ -431,13 +436,33 @@ final class SceneBuilder {
             node.look(at: n.position)
             node.eulerAngles.x += .pi/2
             parent.addChildNode(node)
+            // Pulse the line subtly
+            let pulse = SCNAction.sequence([
+                .fadeOpacity(to: 0.2, duration: 0.6),
+                .fadeOpacity(to: 0.5, duration: 0.6)
+            ])
+            node.opacity = 0.35
+            node.runAction(.repeatForever(pulse))
             count += 1
+        }
+    }
+
+    private func applyAppearAnimation(to container: SCNNode, kind: AppearKind) {
+        let dy: CGFloat = (kind == .enter) ? 0.6 : 0.2
+        for child in container.childNodes {
+            let original = child.position
+            child.position = SCNVector3(original.x, original.y - CGFloat(Float(dy)), original.z)
+            child.opacity = 0
+            let move = SCNAction.moveBy(x: 0, y: dy, z: 0, duration: 0.45)
+            move.timingMode = .easeOut
+            let fade = SCNAction.fadeIn(duration: 0.4)
+            child.runAction(.group([move, fade]))
         }
     }
 
     // MARK: - Family-based spiral arms layout
     private func familyFor(node: FileNode) -> String {
-        tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.family
+        tagger.tag(for: node).style.family
     }
 
     private func layoutFamilyArms(children: [FileNode], in parent: SCNNode, selectedPath: String?, matchPaths: Set<String>, previewProvider: PreviewProvider?) {
@@ -511,7 +536,7 @@ final class SceneBuilder {
 
         if config.showLabels && r >= config.labelMinRel {
             let labelText = labelString(for: node, maxChars: config.labelMaxChars)
-            let baseColor = tagger.tag(for: node.url, isDirectory: node.isDirectory, isPackage: node.isPackage, uti: node.uti, fileExtension: node.fileExtension).style.color
+            let baseColor = tagger.tag(for: node).style.color
             let label = TextLabelFactory.makeBillboard(text: labelText, fontSize: 9, baseColor: baseColor)
             label.position = SCNVector3(0, Float(height/2 + 0.1), 0)
             n.addChildNode(label)

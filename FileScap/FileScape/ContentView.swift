@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var vm: ExplorerViewModel
     @State private var cameraFocusPath: String? = nil
     @State private var transitionHint: FileSceneView.TransitionHint? = nil
+    @State private var flyTo: FileSceneView.FlyTarget? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -118,10 +119,12 @@ struct ContentView: View {
                     vm.select(byPath: path)
                 }, onActivatePath: { path in
                     vm.select(byPath: path)
-                    transitionHint = .enter
-                    vm.enterSelectedFolder()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { transitionHint = nil }
-                }, onBack: { vm.goUp() }, zoomModifier: vm.zoomKey.flag)
+                    // fly fast to the target first, then enter
+                    flyTo = FileSceneView.FlyTarget(path: path, fast: true)
+                }, onBack: { vm.goUp() }, zoomModifier: vm.zoomKey.flag, flyTo: flyTo, onFlyComplete: {
+                    if vm.selected != nil { transitionHint = .enter; vm.enterSelectedFolder(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { transitionHint = nil } }
+                    flyTo = nil
+                })
                 .ignoresSafeArea(edges: .horizontal)
             } else {
                 VStack(spacing: 12) {
