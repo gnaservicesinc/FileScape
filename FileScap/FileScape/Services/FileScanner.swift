@@ -12,6 +12,7 @@ final class FileScanner {
         var packageAsFiles: Bool = true
         var skipPaths: Set<String> = []
         var fileCountLimit: Int = 500_000
+        var computePackageSizesDeep: Bool = true
     }
 
     static func scan(root url: URL, options: Options = Options()) throws -> FileNode {
@@ -71,18 +72,44 @@ final class FileScanner {
 
         let isDir = rv.isDirectory ?? false
         let isPkg = rv.isPackage ?? false
-        let treatAsFile = (!isDir) || (isPkg && options.packageAsFiles)
 
-        if treatAsFile {
-            // Prefer allocated size if available; fall back to logical file size.
+        // Treat packages (e.g., .app) as files but compute size by summing their contents.
+        if isPkg && options.packageAsFiles {
+            var size: Int64 = 0
+            if options.computePackageSizesDeep {
+                size = try directorySize(at: url,
+                                         includeHidden: options.includeHidden,
+                                         followSymlinks: options.followSymlinks,
+                                         visited: &visited,
+                                         remainingCount: &remainingCount)
+            } else {
+                // fallback to metadata (often zero for packages)
+                let allocatedSize64: Int64? = (rv.totalFileAllocatedSize as NSNumber?)?.int64Value
+                let fileSize64: Int64? = rv.fileSize.flatMap { Int64($0) }
+                size = allocatedSize64 ?? fileSize64 ?? 0
+            }
+            return FileNode(url: url,
+                            name: name,
+                            isDirectory: false, // treat package as file in visualization
+                            isPackage: true,
+                            fileExtension: url.pathExtension,
+                            uti: rv.typeIdentifier,
+                            sizeBytes: size,
+                            creationDate: rv.creationDate,
+                            modificationDate: rv.contentModificationDate,
+                            accessDate: rv.contentAccessDate,
+                            children: [])
+        }
+
+        // Regular files
+        if !isDir {
             let allocatedSize64: Int64? = (rv.totalFileAllocatedSize as NSNumber?)?.int64Value
             let fileSize64: Int64? = rv.fileSize.flatMap { Int64($0) }
             let size: Int64 = allocatedSize64 ?? fileSize64 ?? 0
-
             return FileNode(url: url,
                             name: name,
-                            isDirectory: isDir,
-                            isPackage: isPkg,
+                            isDirectory: false,
+                            isPackage: false,
                             fileExtension: url.pathExtension,
                             uti: rv.typeIdentifier,
                             sizeBytes: size,
@@ -99,17 +126,30 @@ final class FileScanner {
         if depth < options.maxDepth {
             let fm = FileManager.default
             let opts: FileManager.DirectoryEnumerationOptions = options.includeHidden ? [] : [.skipsHiddenFiles]
+            var itemURLs: [URL] = []
             if let items = try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(keys), options: opts) {
-                for childURL in items {
-                    if options.skipPaths.contains(childURL.path) { continue }
-                    do {
-                        let child = try buildNode(url: childURL, depth: depth + 1, options: options, visited: &visited, remainingCount: &remainingCount)
-                        childNodes.append(child)
-                        total &+= child.sizeBytes
-                    } catch {
-                        // Skip problems and continue
-                        continue
+                itemURLs = items
+            }
+            // Fallback: if we got suspiciously few items, try atPath API and rebuild URLs
+            if itemURLs.isEmpty || (url.path == "/" && itemURLs.count < 5) {
+                if let names = try? fm.contentsOfDirectory(atPath: url.path) {
+                    let filtered = names.filter { name in
+                        if name == "." || name == ".." { return false }
+                        if !options.includeHidden && name.hasPrefix(".") { return false }
+                        return true
                     }
+                    itemURLs = filtered.map { url.appendingPathComponent($0) }
+                }
+            }
+            for childURL in itemURLs {
+                if options.skipPaths.contains(childURL.path) { continue }
+                do {
+                    let child = try buildNode(url: childURL, depth: depth + 1, options: options, visited: &visited, remainingCount: &remainingCount)
+                    childNodes.append(child)
+                    total &+= child.sizeBytes
+                } catch {
+                    // Skip problems and continue
+                    continue
                 }
             }
         }
@@ -139,5 +179,34 @@ final class FileScanner {
                  modificationDate: rv.contentModificationDate,
                  accessDate: rv.contentAccessDate,
                  children: [])
+    }
+
+    static func directorySize(at url: URL,
+                                      includeHidden: Bool,
+                                      followSymlinks: Bool,
+                                      visited: inout Set<String>,
+                                      remainingCount: inout Int) throws -> Int64 {
+        var total: Int64 = 0
+        let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey, .totalFileAllocatedSizeKey, .isSymbolicLinkKey]
+        let options: FileManager.DirectoryEnumerationOptions = includeHidden ? [] : [.skipsHiddenFiles]
+        guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: keys, options: options) else {
+            return 0
+        }
+        for case let child as URL in enumerator {
+            if remainingCount <= 0 { break }
+            remainingCount -= 1
+            do {
+                let rv = try child.resourceValues(forKeys: Set(keys))
+                if rv.isSymbolicLink == true && !followSymlinks { continue }
+                if rv.isRegularFile == true {
+                    let allocatedSize64: Int64? = (rv.totalFileAllocatedSize as NSNumber?)?.int64Value
+                    let fileSize64: Int64? = rv.fileSize.flatMap { Int64($0) }
+                    total &+= (allocatedSize64 ?? fileSize64 ?? 0)
+                }
+            } catch {
+                continue
+            }
+        }
+        return total
     }
 }
