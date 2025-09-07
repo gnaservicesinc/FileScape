@@ -8,10 +8,12 @@
 import SwiftUI
 
 @main
-struct FileScapApp: App {
+struct FileScapeApp: App {
+    @StateObject private var vm = ExplorerViewModel()
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(vm)
         }
     }
 }

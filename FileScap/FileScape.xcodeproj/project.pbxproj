@@ -24,25 +24,25 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		DB804E8E2E6D143E00F14D66 /* FileScap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FileScap.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		DB804E9B2E6D143F00F14D66 /* FileScapTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileScapTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		DB804EA52E6D143F00F14D66 /* FileScapUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileScapUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB804E8E2E6D143E00F14D66 /* FileScape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FileScape.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB804E9B2E6D143F00F14D66 /* FileScapeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileScapeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB804EA52E6D143F00F14D66 /* FileScapeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FileScapeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		DB804E902E6D143E00F14D66 /* FileScap */ = {
+		DB804E902E6D143E00F14D66 /* FileScape */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FileScap;
+			path = FileScape;
 			sourceTree = "<group>";
 		};
-		DB804E9E2E6D143F00F14D66 /* FileScapTests */ = {
+		DB804E9E2E6D143F00F14D66 /* FileScapeTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FileScapTests;
+			path = FileScapeTests;
 			sourceTree = "<group>";
 		};
-		DB804EA82E6D143F00F14D66 /* FileScapUITests */ = {
+		DB804EA82E6D143F00F14D66 /* FileScapeUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FileScapUITests;
+			path = FileScapeUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,9 +75,9 @@
 		DB804E852E6D143E00F14D66 = {
 			isa = PBXGroup;
 			children = (
-				DB804E902E6D143E00F14D66 /* FileScap */,
-				DB804E9E2E6D143F00F14D66 /* FileScapTests */,
-				DB804EA82E6D143F00F14D66 /* FileScapUITests */,
+				DB804E902E6D143E00F14D66 /* FileScape */,
+				DB804E9E2E6D143F00F14D66 /* FileScapeTests */,
+				DB804EA82E6D143F00F14D66 /* FileScapeUITests */,
 				DB804E8F2E6D143E00F14D66 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +85,9 @@
 		DB804E8F2E6D143E00F14D66 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				DB804E8E2E6D143E00F14D66 /* FileScap.app */,
-				DB804E9B2E6D143F00F14D66 /* FileScapTests.xctest */,
-				DB804EA52E6D143F00F14D66 /* FileScapUITests.xctest */,
+				DB804E8E2E6D143E00F14D66 /* FileScape.app */,
+				DB804E9B2E6D143F00F14D66 /* FileScapeTests.xctest */,
+				DB804EA52E6D143F00F14D66 /* FileScapeUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		DB804E8D2E6D143E00F14D66 /* FileScap */ = {
+		DB804E8D2E6D143E00F14D66 /* FileScape */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DB804EAF2E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScap" */;
+			buildConfigurationList = DB804EAF2E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScape" */;
 			buildPhases = (
 				DB804E8A2E6D143E00F14D66 /* Sources */,
 				DB804E8B2E6D143E00F14D66 /* Frameworks */,
@@ -108,18 +108,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				DB804E902E6D143E00F14D66 /* FileScap */,
+				DB804E902E6D143E00F14D66 /* FileScape */,
 			);
-			name = FileScap;
+			name = FileScape;
 			packageProductDependencies = (
 			);
 			productName = FileScap;
-			productReference = DB804E8E2E6D143E00F14D66 /* FileScap.app */;
+			productReference = DB804E8E2E6D143E00F14D66 /* FileScape.app */;
 			productType = "com.apple.product-type.application";
 		};
-		DB804E9A2E6D143F00F14D66 /* FileScapTests */ = {
+		DB804E9A2E6D143F00F14D66 /* FileScapeTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DB804EB22E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapTests" */;
+			buildConfigurationList = DB804EB22E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapeTests" */;
 			buildPhases = (
 				DB804E972E6D143F00F14D66 /* Sources */,
 				DB804E982E6D143F00F14D66 /* Frameworks */,
@@ -131,18 +131,18 @@
 				DB804E9D2E6D143F00F14D66 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				DB804E9E2E6D143F00F14D66 /* FileScapTests */,
+				DB804E9E2E6D143F00F14D66 /* FileScapeTests */,
 			);
-			name = FileScapTests;
+			name = FileScapeTests;
 			packageProductDependencies = (
 			);
 			productName = FileScapTests;
-			productReference = DB804E9B2E6D143F00F14D66 /* FileScapTests.xctest */;
+			productReference = DB804E9B2E6D143F00F14D66 /* FileScapeTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		DB804EA42E6D143F00F14D66 /* FileScapUITests */ = {
+		DB804EA42E6D143F00F14D66 /* FileScapeUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DB804EB52E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapUITests" */;
+			buildConfigurationList = DB804EB52E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapeUITests" */;
 			buildPhases = (
 				DB804EA12E6D143F00F14D66 /* Sources */,
 				DB804EA22E6D143F00F14D66 /* Frameworks */,
@@ -154,13 +154,13 @@
 				DB804EA72E6D143F00F14D66 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				DB804EA82E6D143F00F14D66 /* FileScapUITests */,
+				DB804EA82E6D143F00F14D66 /* FileScapeUITests */,
 			);
-			name = FileScapUITests;
+			name = FileScapeUITests;
 			packageProductDependencies = (
 			);
 			productName = FileScapUITests;
-			productReference = DB804EA52E6D143F00F14D66 /* FileScapUITests.xctest */;
+			productReference = DB804EA52E6D143F00F14D66 /* FileScapeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = DB804E892E6D143E00F14D66 /* Build configuration list for PBXProject "FileScap" */;
+			buildConfigurationList = DB804E892E6D143E00F14D66 /* Build configuration list for PBXProject "FileScape" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -200,9 +200,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				DB804E8D2E6D143E00F14D66 /* FileScap */,
-				DB804E9A2E6D143F00F14D66 /* FileScapTests */,
-				DB804EA42E6D143F00F14D66 /* FileScapUITests */,
+				DB804E8D2E6D143E00F14D66 /* FileScape */,
+				DB804E9A2E6D143F00F14D66 /* FileScapeTests */,
+				DB804EA42E6D143F00F14D66 /* FileScapeUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +258,12 @@
 /* Begin PBXTargetDependency section */
 		DB804E9D2E6D143F00F14D66 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = DB804E8D2E6D143E00F14D66 /* FileScap */;
+			target = DB804E8D2E6D143E00F14D66 /* FileScape */;
 			targetProxy = DB804E9C2E6D143F00F14D66 /* PBXContainerItemProxy */;
 		};
 		DB804EA72E6D143F00F14D66 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = DB804E8D2E6D143E00F14D66 /* FileScap */;
+			target = DB804E8D2E6D143E00F14D66 /* FileScape */;
 			targetProxy = DB804EA62E6D143F00F14D66 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -403,6 +403,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "File Scape";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -435,6 +437,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "File Scape";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -470,7 +474,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FileScap.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FileScap";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FileScape.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FileScape";
 			};
 			name = Debug;
 		};
@@ -491,7 +495,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FileScap.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FileScap";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FileScape.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FileScape";
 			};
 			name = Release;
 		};
@@ -536,7 +540,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		DB804E892E6D143E00F14D66 /* Build configuration list for PBXProject "FileScap" */ = {
+		DB804E892E6D143E00F14D66 /* Build configuration list for PBXProject "FileScape" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DB804EAD2E6D143F00F14D66 /* Debug */,
@@ -545,7 +549,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DB804EAF2E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScap" */ = {
+		DB804EAF2E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScape" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DB804EB02E6D143F00F14D66 /* Debug */,
@@ -554,7 +558,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DB804EB22E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapTests" */ = {
+		DB804EB22E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapeTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DB804EB32E6D143F00F14D66 /* Debug */,
@@ -563,7 +567,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DB804EB52E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapUITests" */ = {
+		DB804EB52E6D143F00F14D66 /* Build configuration list for PBXNativeTarget "FileScapeUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DB804EB62E6D143F00F14D66 /* Debug */,
